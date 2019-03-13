@@ -48,14 +48,14 @@ cat /etc/letsencrypt/live/${CLEANED_DOMAIN_NAME}/privkey.pem /etc/letsencrypt/li
 echo "Uploading certs to Aunsight."
 au2 secret ingest -i ${CERT_SECRET_ID} --file ${TEMP_PATH} --force-overwrite
 
-#JIRA STUFF...
-#TODO
+# #JIRA STUFF...
+# #TODO
 JIRA_USERNAME=$(echo $SECRET | jq -r .JIRA_USER )
 JIRA_PASSWORD=$(echo $SECRET | jq -r .JIRA_TOKEN )
 
 NAME_OF_TICKET="Renew Cert for ${DOMAIN_NAME}"
 #Search for Ticket in last 7 days.
-LIST_OF_ISSUES=$(curl -v -X POST \
+LIST_OF_ISSUES=$(curl -X POST \
     https://aunalytics.atlassian.net/rest/api/2/search \
     -u ${JIRA_USERNAME}:${JIRA_PASSWORD} \
     -H 'Content-Type: application/json' \
@@ -77,26 +77,21 @@ then
         exit 1
     fi
 else
+    echo $NAME_OF_TICKET
+    echo $DOMAIN_NAME
     echo "Creating Issue."
-    JIRA_RES=$(curl -v -X POST \
-     https://aunalytics.atlassian.net/rest/api/2/issue/ \
+    JIRA_RES=$(curl  -X POST \
+        https://aunalytics.atlassian.net/rest/api/2/issue/ \
         -u ${JIRA_USERNAME}:${JIRA_PASSWORD} \
-        -H 'Content-Type: application/json' \
+        -H "Content-Type: application/json" \
         -d '{
-    "fields": {
-       "project":
-       {
-          "key": "AUN"
-       },
-       "summary": "'${NAME_OF_TICKET}'",
-       "description": "Creating Ticket for renewing cert for '${DOMAIN_NAME}'",
-       "issuetype": {
-          "name": "Task"
-       },
-       "assignee": {
-       	"name" : "ppatel"
+        "fields": {
+       "project":{"key": "AUN"},
+       "summary": "'"${NAME_OF_TICKET}"'",
+       "description": "Creating Ticket for renewing cert for '"${DOMAIN_NAME}"'",
+       "issuetype": {"name": "Task"},
+       "assignee": {"name" : "ppatel"}
        }
-   }
     }')
     TICKET_ID=$(echo ${JIRA_RES} | jq -r .key)
 fi
@@ -135,7 +130,7 @@ do
     cp /etc/letsencrypt/live/${CLEANED_DOMAIN_NAME}/fullchain.pem $i
 done
 git pull
-git checkout "${TICKET_ID}-cert-update"
+git checkout -b "${TICKET_ID}-cert-update"
 # git branch -b "${TICKET_ID}-cert-update"
 git add .
 git commit -m "${TICKET_ID} updated Certs."
