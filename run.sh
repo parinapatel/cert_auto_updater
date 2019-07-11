@@ -36,7 +36,7 @@ export AWS_ACCESS_KEY_ID=$(echo $SECRET | jq -r .AWS_ACCESS_KEY_ID)
 export AWS_SECRET_ACCESS_KEY=$(echo $SECRET | jq -r .AWS_SECRET_ACCESS_KEY )
 
 
-certbot certonly -n --agree-tos --email support@aunalytics.com --dns-route53  --staging --expand --server https://acme-v02.api.letsencrypt.org/directory -d ${DOMAIN_NAME}
+certbot certonly -n --agree-tos --email support@aunalytics.com --dns-route53  --expand --server https://acme-v02.api.letsencrypt.org/directory -d ${DOMAIN_NAME}
 CLEANED_DOMAIN_NAME=${DOMAIN_NAME#*.}
 echo "validation Cert genration Completed."
 
@@ -60,7 +60,7 @@ LIST_OF_ISSUES=$(curl -X POST \
     -u ${JIRA_USERNAME}:${JIRA_PASSWORD} \
     -H 'Content-Type: application/json' \
     -d '{
-	"jql" : "project = AUN AND summary ~\"renew\" AND createdDate >= startOfDay(\"-7\") ORDER BY status ASC, created DESC",
+	"jql" : "project = AUN AND summary ~\"'${DOMAIN_NAME}'\" AND createdDate >= startOfDay(\"-7\") ORDER BY status ASC, created DESC",
 	"maxResults" : 5,
 	"fields": ["id","key","summary"]
 }')
@@ -100,6 +100,12 @@ fi
 cd /home/user
 mkdir -p /home/user/.ssh
 GIT_SSH_KEY_PATH="/home/user/.ssh/id_rsa"
+
+echo "setting ansible password."
+ANSIBLE_VAULT_PASS_FILE="/home/user/.ansiblepass"
+export ANSIBLE_VAULT_PASS=$(echo $SECRET | jq -r .ANSIBLE_VAULT_PASS)
+echo ${ANSIBLE_VAULT_PASS} > ${ANSIBLE_VAULT_PASS_FILE}
+
 echo -e $(echo $SECRET | jq -r .GIT_SSH_KEY)  > ${GIT_SSH_KEY_PATH}
 chmod -R 600 ${GIT_SSH_KEY_PATH}
 chmod -R 600 /home/user/.ssh
@@ -122,12 +128,14 @@ for i in ${LIST_OF_KEY_PATH}
 do
     echo "replacing key files at ${i}"
     cp /etc/letsencrypt/live/${CLEANED_DOMAIN_NAME}/privkey.pem $i
+    ansible-vault encrypt $i --vault-password-file=${ANSIBLE_VAULT_PASS_FILE}
 done
 
 for i in ${LIST_OF_FULLCHAIN_PATH}
 do
     echo "replacing Full chain files at ${i}"
     cp /etc/letsencrypt/live/${CLEANED_DOMAIN_NAME}/fullchain.pem $i
+    ansible-vault encrypt $i --vault-password-file=${ANSIBLE_VAULT_PASS_FILE}
 done
 git pull
 git checkout -b "${TICKET_ID}-cert-update"
