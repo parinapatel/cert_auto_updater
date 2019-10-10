@@ -36,7 +36,7 @@ export AWS_ACCESS_KEY_ID=$(echo $SECRET | jq -r .AWS_ACCESS_KEY_ID)
 export AWS_SECRET_ACCESS_KEY=$(echo $SECRET | jq -r .AWS_SECRET_ACCESS_KEY )
 
 
-certbot certonly -n --agree-tos --email support@aunalytics.com --dns-route53  --expand --server https://acme-v02.api.letsencrypt.org/directory -d ${DOMAIN_NAME}
+certbot certonly -n --agree-tos --email devops@aunsight.com --dns-route53  --expand --server https://acme-v02.api.letsencrypt.org/directory -d ${DOMAIN_NAME}
 CLEANED_DOMAIN_NAME=${DOMAIN_NAME#*.}
 echo "validation Cert genration Completed."
 
@@ -60,7 +60,7 @@ LIST_OF_ISSUES=$(curl -X POST \
     -u ${JIRA_USERNAME}:${JIRA_PASSWORD} \
     -H 'Content-Type: application/json' \
     -d '{
-	"jql" : "project = AUN AND summary ~\"'${DOMAIN_NAME}'\" AND createdDate >= startOfDay(\"-7\") ORDER BY status ASC, created DESC",
+	"jql" : "project = AUN AND summary ~\"'"${CLEANED_DOMAIN_NAME}"'\" AND createdDate >= startOfDay(\"-7\") ORDER BY status ASC, created DESC",
 	"maxResults" : 5,
 	"fields": ["id","key","summary"]
 }')
