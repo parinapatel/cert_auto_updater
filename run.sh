@@ -124,14 +124,14 @@ then
     exit 1
 fi
 
-for i in ${LIST_OF_KEY_PATH}
+for i in "${LIST_OF_KEY_PATH}"
 do
     echo "replacing key files at ${i}"
     cp /etc/letsencrypt/live/${CLEANED_DOMAIN_NAME}/privkey.pem $i
     ansible-vault encrypt $i --vault-password-file=${ANSIBLE_VAULT_PASS_FILE}
 done
 
-for i in ${LIST_OF_FULLCHAIN_PATH}
+for i in "${LIST_OF_FULLCHAIN_PATH}"
 do
     echo "replacing Full chain files at ${i}"
     cp /etc/letsencrypt/live/${CLEANED_DOMAIN_NAME}/fullchain.pem $i
