@@ -8,9 +8,29 @@ if ! [[ -x $(which openssl) ]]; then
   exit 1
 fi
 
+if [[ $(uname) == "Darwin" ]] 
+then
+if ! [[ -x $(which gtimeout) ]]; then
+  printf "\gtimeout not found or not executable.\nPlease install gtimeout before proceeding.\n brew install coreutils \n\n"
+  exit 1
+fi
+
+else
+if ! [[ -x $(which timeout) ]]; then
+  printf "\timeout not found or not executable.\nPlease install timeout before proceeding.\n\n"
+  exit 1
+fi
+
+fi
+
 ### user adjustable variables ###
 #openssl query timeout:
-openssl_timeout=""
+if [[ $(uname) == "Darwin" ]] 
+then
+  openssl_timeout="gtimeout 10"
+else
+  openssl_timeout="timeout 10"
+fi
 # 30 days is default on warnings - overidden on command line with '-d':
 days_to_warn=30
 # default name for file lists
@@ -38,7 +58,7 @@ YELLOW=$(tput setaf 3) #warning/date close!
 NC=$(tput sgr0)        #reset to normal
 #
 usage="
-$(basename "$0") [-h] [-c] [-d DAYS] [-f FILENAME] | [-w WEBSITE] | [-s SITELIST]
+$(basename "$0") [-h] [-c] [-d DAYS] [-t TIMEOUT] [-f FILENAME] | [-w WEBSITE] | [-s SITELIST]
 
 Retrieve the expiration date(s) on SSL certificate(s) using OpenSSL.
 
@@ -49,6 +69,9 @@ Usage:
 
     -d  Amount of days to show warnings (default is 30 days)
         Example: -d 15
+
+    -t  Amount of seconds to wait for timeout (default is 10 secs)
+        Example: -t 3
 
     -f  SSL date from FILENAME
         Example: -f /home/user/example.pem
@@ -130,9 +153,8 @@ check_expiry() {
     if [[ $tls == "1" ]]; then
       sTLS=" -starttls smtp"
     fi
-
     if [ "$lookuptype" == "FILENAME" ]; then
-      expire_date=$(openssl x509 -in $certfilename$sTLS -noout -dates 2>/dev/null | \
+      expire_date=$($openssl_timeout openssl x509 -in $certfilename$sTLS -noout -dates 2>/dev/null | \
                   awk -F= '/^notAfter/ { print $2; exit }')
     else
       expire_date=$($openssl_timeout openssl s_client -servername $website -connect $website:$port$sTLS </dev/null 2>/dev/null | \
@@ -222,7 +244,7 @@ list_lookup() {
 
 #HANDLE ARGUMENTS
 
-while getopts ':hcd:f:s:w:' option; do
+while getopts ':hcd:f:s:w:t:' option; do
   case "$option" in
     h) printf "$usage"
        exit 0
@@ -249,6 +271,14 @@ while getopts ':hcd:f:s:w:' option; do
     w) website=$OPTARG
        client_lookup
        exit 0
+       ;;
+    t) timeout=$OPTARG
+       if [[ $(uname) == "Darwin" ]] ;
+       then 
+        openssl_timeout="gtimeout ${timeout}"
+       else
+        openssl_timeout="timeout ${timeout}";
+       fi
        ;;
     :) printf "\nYou specified a flag that needs an argument.\n$usage" 1>&2
        exit 1
